@@ -1,0 +1,26 @@
+<launch>
+  <node pkg="hls_lfom_tof_driver" type="hlds_3dtof_node" name="hls_lfom_tof_driver"
+        args="" required="true" output="screen" >
+  </node>
+
+  <param name="ini_path" type="str" value="$(find hls_lfom_tof_driver)/launch/" />
+
+  <param name="frame_id" value="base_link" />
+  <param name="cloud_topic" value="cloud" />
+
+  <param name="sensor_angle_x" value="0" />
+  <param name="sensor_angle_y" value="0" />
+  <param name="sensor_angle_z" value="0" />
+
+  <param name="edge_signal_cutoff" value="true" />
+  <param name="low_signal_cutoff" value="20" />
+  <param name="far_signal_cutoff" value="0.0" />
+
+  <param name="camera_pixel" value="320x240" />
+  <param name="ir_gain" value="8" />
+  <param name="distance_mode" value="dm_1_0x" />
+  <param name="frame_rate" value="fr30fps" />
+
+  <!--node name="rviz" pkg="rviz" type="rviz" args="-d $(find hls_lfom_tof_driver)/launch/rviz_3d.rviz" /-->
+
+</launch>
