@@ -2,12 +2,7 @@ cmake_minimum_required(VERSION 2.6)
 
 project(hls_lfom_tof_driver)
 
-set(CMAKE_C_COMPILER "gcc")
-set(CMAKE_C_FLAGS_DEBUG "-g -O0")
-
-set(CMAKE_CXX_COMPILER "g++")
-set(CMAKE_CXX_FLAGS "-std=gnu++11")
-set(CMAKE_CXX_FLAGS_DEBUG "-std=gnu++11 -g -O0")
+set(CMAKE_CXX_FLAGS "-std=c++11")
 
 find_package(catkin REQUIRED COMPONENTS
   pcl_ros
