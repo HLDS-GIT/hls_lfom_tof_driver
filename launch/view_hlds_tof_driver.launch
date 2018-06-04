@@ -8,6 +8,8 @@
   <param name="frame_id" value="base_link" />
   <param name="cloud_topic" value="cloud" />
 
+  <param name="camera_mode" value="CameraModeDepth" />
+
   <param name="sensor_angle_x" value="0" />
   <param name="sensor_angle_y" value="0" />
   <param name="sensor_angle_z" value="0" />

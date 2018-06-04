@@ -24,12 +24,12 @@ Product Webpage: [HLDS 3D LiDAR(TOF)](http://hlds.co.jp/product-eng)
 ## Requirements
 Ubuntu 16.04 Desktop Linux  
 ROS Kinetic  
-HLDS HLS-LFOM SDK 2.0.0 or later 
+HLDS HLS-LFOM SDK 2.1.0 or later 
 
 ## Install
 * Install ROS Kinetic  
 
-* Download HLS-LFOM SDK for Ubuntu 16.04 and extract it(http://hlds.co.jp/product-eng/tofsdk)  
+* Download HLS-LFOM SDK latest version(v2.1.0 or later) for Ubuntu 16.04 LTS (x64)  and extract it(http://hlds.co.jp/product-eng/tofsdk)  
 
 * Install HLS-LFOM SDK  
 ```

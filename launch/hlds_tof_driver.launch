@@ -8,6 +8,8 @@
   <param name="frame_id" value="base_link" />
   <param name="cloud_topic" value="cloud" />
 
+  <param name="camera_mode" value="CameraModeDepth" />
+
   <param name="sensor_angle_x" value="0" />
   <param name="sensor_angle_y" value="0" />
   <param name="sensor_angle_z" value="0" />
@@ -20,7 +22,5 @@
   <param name="ir_gain" value="8" />
   <param name="distance_mode" value="dm_1_0x" />
   <param name="frame_rate" value="fr30fps" />
-
-  <!--node name="rviz" pkg="rviz" type="rviz" args="-d $(find hls_lfom_tof_driver)/launch/rviz_3d.rviz" /-->
 
 </launch>

@@ -33,6 +33,7 @@
 
 #include <ros/ros.h>
 #include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/CameraInfo.h>
 #include <pcl_ros/point_cloud.h>
 #include "hldstof/tof.h"
 
@@ -46,11 +47,13 @@ int main(int argc, char* argv[])
   std::string frame_id;
   ros::NodeHandle nh;
   sensor_msgs::PointCloud2 cloud;
+  sensor_msgs::CameraInfoPtr msgCameraInfo;
   sensor_msgs::ImagePtr msgDepth;
   sensor_msgs::ImagePtr msgDepthRaw;
   sensor_msgs::ImagePtr msgIr;
   std::string file_name;
   std::string cloud_topic;
+  ros::Publisher camerainfoPublisher;
   ros::Publisher cloudPublisher;
   ros::Publisher depthPublisher;
   ros::Publisher depthrawPublisher;
@@ -96,9 +99,12 @@ int main(int argc, char* argv[])
     ROS_INFO_STREAM("HLDS 3D TOF version" << ":" << vfpga.c_str() << ":" << vosv.c_str() << ":" << vroot.c_str() );
   }
 
-  if (tof.tofinfo.tofver != TofVersion::TOFv2) {
-      ROS_ERROR_STREAM("This application is only for TOFv2 sensor");
-      return -1;
+  if (tof.tofinfo.tofver == TofVersion::TOFv1) {
+      ROS_INFO_STREAM("TOFv1 sensor");
+  } else if(tof.tofinfo.tofver == TofVersion::TOFv2) {
+      ROS_INFO_STREAM("TOFv2 sensor");
+  } else {
+      ROS_INFO_STREAM("Unknown sensor");
   }
 
   // Once Tof instances are started, TofManager is not necessary and closed
@@ -112,12 +118,15 @@ int main(int argc, char* argv[])
   int location_x, location_y, location_z;
   int angle_x, angle_y, angle_z;
   int low_signal_cutoff, ir_gain;
+  int pixel_count;
   double far_signal_cutoff;
-  std::string camera_pixel, distance_mode, frame_rate;
+  float temp_depth;
+  std::string camera_pixel, distance_mode, frame_rate, camera_mode;
 
   nh.param("frame_id", frame_id, std::string("base_link"));
   nh.param("cloud_topic", cloud_topic, std::string("cloud"));
 
+  nh.param("camera_mode", camera_mode, std::string("Depth_Ir"));
   nh.param("sensor_location_x", location_x, 0);
   nh.param("sensor_location_y", location_y, 0);
   nh.param("sensor_location_z", location_z, 0);
@@ -135,13 +144,34 @@ int main(int argc, char* argv[])
   nh.param("frame_rate", frame_rate, std::string("fr30fps"));
 
   //Set camera mode
+  if(camera_mode == "Depth_Ir") {
   if (tof.SetCameraMode(CameraMode::Depth_Ir) != Result::OK){
     ROS_INFO_STREAM("HLDS 3D TOF ID " << tof.tofinfo.tofid << " Set Camera Mode Error");
     return -1;
   }
+  }
+  else if(camera_mode == "CameraModeDepth") {
+      if (tof.SetCameraMode(CameraMode::CameraModeDepth) != Result::OK){
+          ROS_INFO_STREAM("HLDS 3D TOF ID " << tof.tofinfo.tofid << " Set Camera Mode Error");
+          return -1;
+      }
+  }
+  else if(camera_mode == "CameraModeIr") {
+      if (tof.SetCameraMode(CameraMode::CameraModeIr) != Result::OK){
+          ROS_INFO_STREAM("HLDS 3D TOF ID " << tof.tofinfo.tofid << " Set Camera Mode Error");
+          return -1;
+      }
+  }
 
   //Set camera pixel
-  if(camera_pixel == "320x240") {
+  if(camera_pixel == "640x480") {
+      if (tof.SetCameraPixel(CameraPixel::w640h480) != Result::OK){
+        //  if (tof.SetCameraPixel(CameraPixel::w160h120) != Result::OK){
+        ROS_INFO_STREAM("HLDS 3D TOF ID " << tof.tofinfo.tofid << " Set Camera Pixel Error");
+        return -1;
+      }
+  }
+  else if(camera_pixel == "320x240") {
       if (tof.SetCameraPixel(CameraPixel::w320h240) != Result::OK){
         //  if (tof.SetCameraPixel(CameraPixel::w160h120) != Result::OK){
         ROS_INFO_STREAM("HLDS 3D TOF ID " << tof.tofinfo.tofid << " Set Camera Pixel Error");
@@ -291,13 +321,21 @@ int main(int argc, char* argv[])
   frame.CreateColorTable(0, 65530);
 
   // Initialize the ROS publisher
+  camerainfoPublisher = nh.advertise<sensor_msgs::CameraInfo> ("/camera_info", 1);
+  if(camera_mode != "CameraModeIr") {
   cloudPublisher = nh.advertise<pcl::PointCloud<pcl::PointXYZ> > (cloud_topic, 1);
+  }
+  if((camera_mode == "Depth_Ir")||(camera_mode == "CameraModeIr")) {
   irPublisher = nh.advertise<sensor_msgs::Image> ("/image_ir", 1);
+  }
+  if(camera_mode != "CameraModeIr") {
   depthPublisher = nh.advertise<sensor_msgs::Image> ("/image_depth", 1);
   depthrawPublisher = nh.advertise<sensor_msgs::Image> ("/image_depth_raw", 1);
+  }
   ROS_INFO_STREAM("Publishing data on topic \"" << nh.resolveName(cloud_topic) << "\" with frame_id \"" << frame_id << "\"");
 
   ros::Rate r(40);
+  ros::Time t;
 
   //while (nh.ok ())
   while (ros::ok())
@@ -313,20 +351,78 @@ int main(int argc, char* argv[])
 
       //Read a frame of depth data
       ret = Result::OK;
+      if(camera_mode == "Depth_Ir") {
       ret = tof.ReadFrame(&frame, &frameir);
+      }
+      else if(camera_mode == "CameraModeDepth") {
+          ret = tof.ReadFrame(&frame);
+      }
+      else if(camera_mode == "CameraModeIr") {
+          ret = tof.ReadFrame(&frameir);
+      }
       if (ret != Result::OK) {
         ROS_INFO_STREAM("HLDS 3D TOF read frame error");
         break;
       }
-
+      if(camera_mode != "CameraModeIr") {
       //3D conversion(with lens correction)
       frame3d.Convert(&frame);
 
       //3D rotation(to top view)
       frame3d.Rotate(angle_x, angle_y, angle_z);
+      }
+
+      t=ros::Time::now();
+
+      // Create CameraIno
+      msgCameraInfo = sensor_msgs::CameraInfoPtr(new sensor_msgs::CameraInfo);
+      msgCameraInfo->header.frame_id = frame_id;
+      msgCameraInfo->header.stamp = t;
+      msgCameraInfo->height =  frame.height;
+      msgCameraInfo->width =  frame.width;
+      msgCameraInfo->K[0] = frame.width;
+      msgCameraInfo->K[1] = 0;
+      msgCameraInfo->K[2] = frame.height;
+      msgCameraInfo->K[3] = 0;
+      msgCameraInfo->K[4] = frame.width;
+      msgCameraInfo->K[5] = frame.height;
+      msgCameraInfo->K[6] = 0;
+      msgCameraInfo->K[7] = 0;
+      msgCameraInfo->K[8] = 1;
+      msgCameraInfo->R[0] = 1;
+      msgCameraInfo->R[1] = 0;
+      msgCameraInfo->R[2] = 0;
+      msgCameraInfo->R[3] = 0;
+      msgCameraInfo->R[4] = 1;
+      msgCameraInfo->R[5] = 0;
+      msgCameraInfo->R[6] = 0;
+      msgCameraInfo->R[7] = 0;
+      msgCameraInfo->R[8] = 1;
+      msgCameraInfo->P[0] = frame.width;
+      msgCameraInfo->P[1] = 0;
+      msgCameraInfo->P[2] = frame.height;
+      msgCameraInfo->P[3] = 0;
+      msgCameraInfo->P[4] = 0;
+      msgCameraInfo->P[5] = frame.width;
+      msgCameraInfo->P[6] = frame.height;
+      msgCameraInfo->P[7] = 0;
+      msgCameraInfo->P[8] = 0;
+      msgCameraInfo->P[9] = 0;
+      msgCameraInfo->P[10] = 1;
+      msgCameraInfo->P[11] = 0;
+      msgCameraInfo->distortion_model = "plumb_bob";
+      msgCameraInfo->D.resize(5);
+      msgCameraInfo->D[0] = 0;
+      msgCameraInfo->D[1] = 0;
+      msgCameraInfo->D[2] = 0;
+      msgCameraInfo->D[3] = 0;
+      msgCameraInfo->D[4] = 0;
+
 
       // Create the IR image
       msgIr = sensor_msgs::ImagePtr(new sensor_msgs::Image);
+      msgIr->header.stamp = t;
+      msgIr->header.frame_id = frame_id;
       msgIr->height = frameir.height;
       msgIr->width = frameir.width;
       msgIr->is_bigendian = false;
@@ -335,6 +431,8 @@ int main(int argc, char* argv[])
 
       // Create the Depth image
       msgDepth = sensor_msgs::ImagePtr(new sensor_msgs::Image);
+      msgDepth->header.stamp = t;
+      msgDepth->header.frame_id = frame_id;
       msgDepth->height = frame.height;
       msgDepth->width = frame.width;
       msgDepth->is_bigendian = false;
@@ -343,26 +441,36 @@ int main(int argc, char* argv[])
 
       // Create the Depth Raw image
       msgDepthRaw = sensor_msgs::ImagePtr(new sensor_msgs::Image);
+      msgDepthRaw->header.stamp = t;
+      msgDepthRaw->header.frame_id = frame_id;
       msgDepthRaw->height = frame.height;
       msgDepthRaw->width = frame.width;
       msgDepthRaw->is_bigendian = false;
-      msgDepthRaw->encoding = sensor_msgs::image_encodings::TYPE_8UC1;
-      msgDepthRaw->data.resize(frame.pixel);
+      msgDepthRaw->encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+      msgDepthRaw->step = (uint32_t)(sizeof(float) * frame.width);
+      msgDepthRaw->data.resize(sizeof(float)*frame.pixel);
 
       // Create the point cloud
       pcl::PointCloud<pcl::PointXYZ>::Ptr ptCloud(new pcl::PointCloud<pcl::PointXYZ>());
-      ptCloud->header.stamp = pcl_conversions::toPCL(ros::Time::now());
+      ptCloud->header.stamp = pcl_conversions::toPCL(t);
       ptCloud->header.frame_id = frame_id;
       ptCloud->width = frame3d.width;
       ptCloud->height = frame3d.height;
       ptCloud->is_dense = false;
       ptCloud->points.resize(sizeof(uint16_t)*frame3d.pixel);
 
-      for (int i = 0; i < frame.pixel; i++) {
-        pcl::PointXYZ &point = ptCloud->points[i];
-        if ((frame.CalculateLength(frame.databuf[i]) >= frame.distance_min) &&
-                (frame.CalculateLength(frame.databuf[i]) <= frame.distance_max)){
+      float *itD = (float *)&msgDepthRaw->data[0];
 
+      if(camera_mode != "CameraModeIr"){
+          pixel_count = frame.pixel;
+      } else {
+          pixel_count = frameir.pixel;
+      }
+      for (int i = 0; i < pixel_count; i++, ++itD) {
+        pcl::PointXYZ &point = ptCloud->points[i];
+
+        temp_depth = (float)(frame.CalculateLength(frame.databuf[i]));
+        if(frame3d.frame3d[i].z == 0) frame3d.frame3d[i].z = std::numeric_limits<float>::quiet_NaN();
           //Get coordinates after 3D conversion
           point.x = frame3d.frame3d[i].x/1000.0;
           point.y = frame3d.frame3d[i].y/1000.0;
@@ -377,28 +485,19 @@ int main(int argc, char* argv[])
           msgDepth->data[3*i+2] = frame.ColorTable[0][frame.databuf[i]]; //Blue
 
           //Get Depth Raw frame data
-          msgDepthRaw->data[i] = frame.databuf[i]/256.0;
-        }
-        else {
-            point.x = 0;
-            point.y = 0;
-            point.z = 0;
-
-            msgIr->data[i] = 0;
-
-            msgDepth->data[3*i] = 0;
-            msgDepth->data[3*i+1] = 0;
-            msgDepth->data[3*i+2] = 0;
-
-            msgDepthRaw->data[i] = 0;
-        }
+          *itD = (float)point.z;
       }
 
       // Publish topic
+      camerainfoPublisher.publish(msgCameraInfo);
+      if(camera_mode != "CameraModeIr") {
       cloudPublisher.publish(*ptCloud);
-      irPublisher.publish(msgIr);
       depthPublisher.publish(msgDepth);
       depthrawPublisher.publish(msgDepthRaw);
+    }
+      if((camera_mode == "Depth_Ir")||(camera_mode == "CameraModeIr")) {
+          irPublisher.publish(msgIr);
+      }
     }
     r.sleep();
   }
