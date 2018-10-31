@@ -10,11 +10,11 @@ Product Webpage: [HLDS 3D LiDAR(TOF)](http://hlds.co.jp/product-eng)
 
 # Overview
 
-* Conducts real-time sensing of the distance object image to obtain 3-dimensional data  
+* Object distance measurement with high accuracy in realtime  
 
-* 3D data and QVGA IR image can be simultaneously outputted  
+* Easy to install with Ethernet (POE+) connection  
 
-* Light Emitting part: Near Infrared LD, Light Receiving Part: CCD image sensor  
+* Multiple use cases can be accommondated with the SDK  
 
 ![HLS-LFOM](http://i1.wp.com/hlds.co.jp/product-eng/wp-content/uploads/2016/11/hlds_top02.png?w=500)
 
@@ -49,13 +49,13 @@ Modify IP address of tof.ini file in launch folder. It should be the same as the
 If you want to change IP address, please refer to Setup TOF sensor of API Reference Manual in SDK.  
 
 
-## Run hlds_3dtof node
+## Run hlds_3dtof_node
 ```
-roslaunch hls_lfom_tof_driver hlds_3dtof.launch
+roslaunch hls_lfom_tof_driver hlds_tof_driver.launch
 ```
 
-## Run hlds_3dtof node with RViz
+## Run hlds_3dtof_node with RViz
 ```
-roslaunch hls_lfom_tof_driver view_hlds_3dtof.launch
+roslaunch hls_lfom_tof_driver view_hlds_tof_driver.launch
 ```
 

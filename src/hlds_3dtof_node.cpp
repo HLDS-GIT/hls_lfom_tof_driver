@@ -36,9 +36,61 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <pcl_ros/point_cloud.h>
 #include "hldstof/tof.h"
+#include <std_srvs/Empty.h>
+#include <std_srvs/SetBool.h>
+#include "hls_lfom_tof_driver/FarSignalCutoff.h"
+#include "hls_lfom_tof_driver/LowSignalCutoff.h"
+#include "hls_lfom_tof_driver/DistanceMode.h"
 
 using namespace std;
 using namespace hlds;
+
+bool bEdgeSignalCutoff_enable = false;
+bool bEdgeSignalCutoff_disable = false;
+bool bFarSignalCutoff = false;
+bool bEdgeSignalCutoff = false;
+bool bLowSignalCutoff = false;
+bool bDistanceMode = false;
+double bFarSignalCutoff_value = 0;
+int bLowSignalCutoff_value = 0;
+string bDistanceMode_value = "";
+
+bool set_far_signal_cutoff(hls_lfom_tof_driver::FarSignalCutoff::Request &req, hls_lfom_tof_driver::FarSignalCutoff::Response &res)
+{
+    bFarSignalCutoff = true;
+    bFarSignalCutoff_value = req.value;
+    res.result = true;
+}
+
+bool set_low_signal_cutoff(hls_lfom_tof_driver::LowSignalCutoff::Request &req, hls_lfom_tof_driver::LowSignalCutoff::Response &res)
+{
+    bLowSignalCutoff = true;
+    bLowSignalCutoff_value = req.value;
+    res.result = true;
+}
+
+bool set_edge_signal_cutoff(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)
+{
+    if(req.data == true)
+    {
+        bEdgeSignalCutoff_enable = true;
+        res.success = true;
+        res.message = "Set Edge Signal Cutoff Enable";
+    }
+    if(req.data == false)
+    {
+        bEdgeSignalCutoff_disable = true;
+        res.success = false;
+        res.message = "Set Edge Signal Cutoff Disable";
+    }
+}
+
+bool set_distance_mode(hls_lfom_tof_driver::DistanceMode::Request &req, hls_lfom_tof_driver::DistanceMode::Response &res)
+{
+    bDistanceMode = true;
+    bDistanceMode_value = req.value;
+    res.result = true;
+}
 
 int main(int argc, char* argv[])
 {
@@ -58,6 +110,11 @@ int main(int argc, char* argv[])
   ros::Publisher depthPublisher;
   ros::Publisher depthrawPublisher;
   ros::Publisher irPublisher;
+
+  ros::ServiceServer set_far_signal_cutoff_service = nh.advertiseService("set_far_signal_cutoff_srv", set_far_signal_cutoff);
+  ros::ServiceServer set_low_signal_cutoff_service = nh.advertiseService("set_low_signal_cutoff_srv", set_low_signal_cutoff);
+  ros::ServiceServer set_edge_signal_cutoff_service = nh.advertiseService("set_edge_signal_cutoff_srv", set_edge_signal_cutoff);
+  ros::ServiceServer set_distance_mode_service = nh.advertiseService("set_distance_mode_srv", set_distance_mode);
 
   // Initialize HLDS 3D TOF
   Result ret = Result::OK;
@@ -342,6 +399,55 @@ int main(int argc, char* argv[])
   {
     ros::spinOnce();
 
+    if(bFarSignalCutoff == true)
+    {
+        if(tof.SetFarSignalCutoff(bFarSignalCutoff_value) == Result::OK)
+            ROS_INFO("Far Signal Cutoff  : %f", bFarSignalCutoff_value);
+        bFarSignalCutoff = false;
+    }
+
+    if(bLowSignalCutoff == true)
+    {
+        if(tof.SetLowSignalCutoff(bLowSignalCutoff_value) == Result::OK)
+            ROS_INFO("Low Signal Cutoff  : %d", bLowSignalCutoff_value);
+        bLowSignalCutoff = false;
+    }
+
+    if(bEdgeSignalCutoff_disable == true)
+    {
+        if(tof.SetEdgeSignalCutoff(EdgeSignalCutoff::Disable) == Result::OK)
+            ROS_INFO("Edge Signal Cutoff disabled");
+        bEdgeSignalCutoff_disable = false;
+    }
+
+    if(bEdgeSignalCutoff_enable == true)
+    {
+        if(tof.SetEdgeSignalCutoff(EdgeSignalCutoff::Enable) == Result::OK)
+            ROS_INFO("Edge Signal Cutoff enabled");
+        bEdgeSignalCutoff_enable = false;
+    }
+
+    if(bDistanceMode == true)
+    {
+        if(bDistanceMode_value == "dm_2_0x") {
+            if(tof.SetDistanceMode(DistanceMode::dm_2_0x) == Result::OK)
+                ROS_INFO("Distance Mode : dm_2_0x");
+        }
+        if(bDistanceMode_value == "dm_1_5x") {
+            if(tof.SetDistanceMode(DistanceMode::dm_1_5x) == Result::OK)
+                ROS_INFO("Distance Mode : dm_1_5x");
+        }
+        if(bDistanceMode_value == "dm_1_0x") {
+            if(tof.SetDistanceMode(DistanceMode::dm_1_0x) == Result::OK)
+                ROS_INFO("Distance Mode : dm_1_0x");
+        }
+        if(bDistanceMode_value == "dm_0_5x") {
+            if(tof.SetDistanceMode(DistanceMode::dm_0_5x) == Result::OK)
+                ROS_INFO("Distance Mode : dm_0_5x");
+        }
+        bDistanceMode = false;
+    }
+
     //Get the latest frame number
     long frameno;
     TimeStamp timestamp;
@@ -428,6 +534,7 @@ int main(int argc, char* argv[])
       msgIr->is_bigendian = false;
       msgIr->encoding = sensor_msgs::image_encodings::MONO8;
       msgIr->data.resize(frameir.pixel);
+      msgIr->step = frameir.width;
 
       // Create the Depth image
       msgDepth = sensor_msgs::ImagePtr(new sensor_msgs::Image);
@@ -438,6 +545,7 @@ int main(int argc, char* argv[])
       msgDepth->is_bigendian = false;
       msgDepth->encoding = sensor_msgs::image_encodings::RGB8;
       msgDepth->data.resize(frame.pixel*3);
+      msgDepth->step = frame.width*3;
 
       // Create the Depth Raw image
       msgDepthRaw = sensor_msgs::ImagePtr(new sensor_msgs::Image);

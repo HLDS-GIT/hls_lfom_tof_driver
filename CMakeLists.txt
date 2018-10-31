@@ -5,12 +5,23 @@ project(hls_lfom_tof_driver)
 set(CMAKE_CXX_FLAGS "-std=c++11")
 
 find_package(catkin REQUIRED COMPONENTS
+  message_generation
   pcl_ros
   roscpp
   sensor_msgs
 )
 
+add_service_files(
+  FILES
+  FarSignalCutoff.srv
+  LowSignalCutoff.srv
+  DistanceMode.srv
+)
+
+generate_messages(DEPENDENCIES std_msgs)
+
 catkin_package(
+  LIBRARIES hls_lfom_tof_driver
   CATKIN_DEPENDS sensor_msgs
 )
 
