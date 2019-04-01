@@ -43,6 +43,7 @@ HLDS HLS-LFOM SDK 2.1.0 or later
   $ cd ~/catkin_ws  
   $ catkin_make  
 ```
+If using SDK older than v2.3, please use CMakeLists_old.txt.
 
 ## Setting IP address
 Modify IP address of tof.ini file in launch folder. It should be the same as the IP address of the TOF sensor you are trying to connect to. (Default is 192.168.0.105)  

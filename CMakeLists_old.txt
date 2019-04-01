@@ -41,7 +41,6 @@ add_dependencies(
 target_link_libraries(
   hlds_3dtof_node
   /usr/lib/hldstof/libtof.a
-  /usr/lib/hldstof/libtof_cv.so
   rt m pthread stdc++
   ${catkin_LIBRARIES}
 )

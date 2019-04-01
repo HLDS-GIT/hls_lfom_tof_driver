@@ -2,6 +2,11 @@
 Changelog for package hls_lfom_tof_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.3.0 (2019-4-1)
+-----------
+* Support SDK v2.3
+* Contributors: Jeehoon Yang 
+
 1.2.0 (2018-10-31)
 -----------
 * Add services to change parameters
