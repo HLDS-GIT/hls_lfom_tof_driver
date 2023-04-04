@@ -4,7 +4,7 @@ ROS package for HLDS HLS-LFOM 3D LiDAR(TOF)
 
 ROS Wiki: [hls_lfom_tof_driver](http://wiki.ros.org/hls_lfom_tof_driver)
 
-Manufacturer of the TOF: [Hitachi-LG Data Storage,Inc.](http://hlds.co.kr/v2/e_index.html)
+Manufacturer of the TOF: [Hitachi-LG Data Storage,Inc.](https://hitachi-lg.com/)
 
 Product Webpage: [HLDS 3D LiDAR(TOF)](http://hlds.co.jp/product-eng)
 
